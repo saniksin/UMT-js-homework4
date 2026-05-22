@@ -3,11 +3,19 @@
 
 # Заповнюються вручну з відповідей: login повертає accessToken, POST
 # /announcements повертає id оголошення (потрібно для секції 9 — ownership).
-@tokenAlice       =
-@tokenBob         =
-@aliceRefresh     =
+@tokenAlice           =
+@tokenBob             =
+@aliceRefresh         =
 @aliceAnnouncementId  =
 @bobAnnouncementId    =
+
+###
+### ⚙️ Усі запити позначені директивою `# @no-cookie-jar` — це опція
+### розширення REST Client (VS Code), яка вимикає cookie jar для одного
+### запиту. Завдяки цьому кожен запит детермінований: жодних «прихованих»
+### cookies від попередніх відповідей. Якщо вашому інструменту така
+### директива невідома — вона просто буде ігнорована як коментар.
+###
 
 
 ### =================================================================
@@ -29,6 +37,7 @@
 ### 2.1. Реєстрація Аліси → 201 + user (без password) +
 ###      accessToken + refreshToken. Refresh також ставиться в HttpOnly cookie.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -41,6 +50,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 2.2. Реєстрація Боба → 201
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -53,6 +63,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 2.3. Дублікат username → 409 "User with this username already exists"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -65,6 +76,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 2.4. Валідаційні помилки → 400 (username < 3, password < 6, name < 2)
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -80,10 +92,11 @@ Content-Type: application/json
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 3.1. Успішний вхід як alice → 200 + accessToken + refreshToken
+### 3.1. Успішний вхід як alice → 200 + accessToken + refreshToken.
 ###      Скопіюйте accessToken до @tokenAlice вгорі файлу,
 ###      а refreshToken — до @aliceRefresh (знадобиться у 4.1).
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -95,6 +108,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 3.2. Логін як bob → 200. Скопіюйте accessToken до @tokenBob вгорі.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -106,6 +120,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 3.3. Неіснуючий username → 401 "Invalid credentials"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -117,6 +132,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 3.4. Невірний пароль → 401 із тим самим повідомленням "Invalid credentials"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -131,9 +147,10 @@ Content-Type: application/json
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 4.1. Refresh через тіло запиту → 200 + НОВА пара токенів.
+### 4.1. Refresh через ТІЛО запиту → 200 + НОВА пара токенів.
 ###      ВСТАВТЕ актуальний refreshToken (із відповіді 3.1) у @aliceRefresh.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
@@ -142,14 +159,21 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 4.2. Refresh через cookie (HttpOnly) — cookie встановлюється
-###      автоматично у відповіді 3.1; REST Client VS Code зберігає cookies.
+### 4.2. Refresh через COOKIE — переоприсуємо її явно через заголовок
+###      Cookie, тіло порожнє. Сервер бере токен із cookie.
+###      → 200 + НОВА пара токенів (cookie має пріоритет над body).
+###      УВАГА: після 4.1 старий aliceRefresh вже видалено ротацією,
+###      тому для 4.2 спочатку оновіть @aliceRefresh новим значенням
+###      із відповіді 4.1.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/refresh
+Cookie: refreshToken={{aliceRefresh}}
 
 ### -----------------------------------------------------------------
 ### 4.3. Refresh із вигаданим токеном → 401 (запис не знайдено в БД)
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
@@ -159,9 +183,11 @@ Content-Type: application/json
 
 ### -----------------------------------------------------------------
 ### 4.4. Повторне використання вже використаного refresh → 401.
-###      Доказ, що token rotation реально працює — старий запис вже
-###      видалено з БД після 4.1.
+###      Доказ, що token rotation реально працює — старий запис
+###      видалено з БД після 4.1, тому навіть валідний раніше токен
+###      більше не приймається.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
@@ -171,8 +197,9 @@ Content-Type: application/json
 
 ### -----------------------------------------------------------------
 ### 4.5. Refresh без токена (порожнє тіло і без cookie) → 401
-###      "Refresh token not provided"
+###      "Refresh token not provided".
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
@@ -186,12 +213,14 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 5.1. Logout як alice → 200, cookie очищається, refresh видаляється з БД
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/logout
 Authorization: Bearer {{tokenAlice}}
 
 ### -----------------------------------------------------------------
 ### 5.2. Logout без токена → 401
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/auth/logout
 
 ###
@@ -207,12 +236,14 @@ POST {{baseUrl}}/auth/logout
 ### -----------------------------------------------------------------
 ### 6.1. Профіль авторизованого користувача → 200, БЕЗ поля password
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/auth/me
 Authorization: Bearer {{tokenAlice}}
 
 ### -----------------------------------------------------------------
 ### 6.2. /auth/me без токена → 401 "Authentication required"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/auth/me
 
 
@@ -223,12 +254,14 @@ GET {{baseUrl}}/auth/me
 ### -----------------------------------------------------------------
 ### 7.1. Невалідний (підроблений) JWT → 401 "Invalid or expired token"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/auth/me
 Authorization: Bearer this.is.not.a.real.jwt
 
 ### -----------------------------------------------------------------
 ### 7.2. JWT із валідним base64-форматом, але невірним підписом → 401
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/auth/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiZXhwIjoxfQ.fake
 
@@ -240,16 +273,19 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiZXhwIjoxfQ.fake
 ### -----------------------------------------------------------------
 ### 8.1. GET /announcements залишається ПУБЛІЧНИМ → 200
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/announcements
 
 ### -----------------------------------------------------------------
 ### 8.2. GET /announcements/:id залишається ПУБЛІЧНИМ → 200
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/announcements/1
 
 ### -----------------------------------------------------------------
 ### 8.3. POST без токена → 401 (захист працює)
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/announcements
 Content-Type: application/json
 
@@ -262,10 +298,11 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 8.4. POST з токеном alice → 201, userId автоматично = alice.id
+### 8.4. POST з токеном alice → 201, userId автоматично = alice.id.
 ###      Скопіюйте `id` з відповіді у @aliceAnnouncementId вгорі —
 ###      він потрібен для тестів ownership у секції 9.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/announcements
 Authorization: Bearer {{tokenAlice}}
 Content-Type: application/json
@@ -279,9 +316,10 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 8.5. POST з токеном bob → 201, userId = bob.id
+### 8.5. POST з токеном bob → 201, userId = bob.id.
 ###      Скопіюйте `id` з відповіді у @bobAnnouncementId.
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 POST {{baseUrl}}/announcements
 Authorization: Bearer {{tokenBob}}
 Content-Type: application/json
@@ -297,6 +335,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 8.6. PATCH без токена → 401
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Content-Type: application/json
 
@@ -305,6 +344,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 8.7. DELETE без токена → 401
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 DELETE {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 
 
@@ -319,6 +359,7 @@ DELETE {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 ### -----------------------------------------------------------------
 ### 9.1. alice оновлює СВОЄ оголошення → 200
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenAlice}}
 Content-Type: application/json
@@ -328,6 +369,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 9.2. bob намагається ОНОВИТИ оголошення alice → 403 "Access denied"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 Content-Type: application/json
@@ -337,12 +379,14 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 9.3. bob намагається ВИДАЛИТИ оголошення alice → 403 "Access denied"
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 DELETE {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 
 ### -----------------------------------------------------------------
 ### 9.4. bob оновлює СВОЄ оголошення → 200
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 PATCH {{baseUrl}}/announcements/{{bobAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 Content-Type: application/json
@@ -352,6 +396,7 @@ Content-Type: application/json
 ### -----------------------------------------------------------------
 ### 9.5. bob ВИДАЛЯЄ своє оголошення → 204
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 DELETE {{baseUrl}}/announcements/{{bobAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 
@@ -364,9 +409,11 @@ Authorization: Bearer {{tokenBob}}
 ### 10.1. Swagger UI має відкриватися на /api-docs (відкрийте у браузері)
 ###       → http://localhost:3000/api-docs
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/api-docs/
 
 ### -----------------------------------------------------------------
 ### 10.2. OpenAPI JSON
 ### -----------------------------------------------------------------
+# @no-cookie-jar
 GET {{baseUrl}}/api-docs.json
