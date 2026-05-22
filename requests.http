@@ -1,11 +1,13 @@
 ### Variables
 @baseUrl = http://localhost:3000
 
-# Заповнюються вручну з відповідей нижче (login повертає accessToken).
-# test_alice / test_bob — це користувачі, заведені скриптом `npm run db:seed`,
-# вони володіють половиною оголошень (id=1,3,5… → alice, id=2,4,6… → bob).
-@tokenAlice =
-@tokenBob   =
+# Заповнюються вручну з відповідей: login повертає accessToken, POST
+# /announcements повертає id оголошення (потрібно для секції 9 — ownership).
+@tokenAlice       =
+@tokenBob         =
+@aliceRefresh     =
+@aliceAnnouncementId  =
+@bobAnnouncementId    =
 
 
 ### =================================================================
@@ -22,9 +24,16 @@
 ### =================================================================
 ### КРИТЕРІЙ 2 — POST /auth/register (2 бали)
 ### =================================================================
+###
+### ВАЖЛИВО: цей сценарій SELF-CONTAINED — він починається з чистої БД
+### і сам заводить alice/bob. Якщо ви вже запускали його раніше, спочатку
+### очистьте БД:
+###     npx prisma migrate reset --force
+### (Не потрібно запускати `npm run db:seed` — цей файл не залежить від сіду.)
+###
 
 ### -----------------------------------------------------------------
-### 2.1. Реєстрація НОВОГО користувача → 201 + user (без password) +
+### 2.1. Реєстрація Аліси → 201 + user (без password) +
 ###      accessToken + refreshToken. Refresh також ставиться в HttpOnly cookie.
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/register
@@ -37,7 +46,7 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 2.2. Реєстрація ще одного нового користувача → 201
+### 2.2. Реєстрація Боба → 201
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
@@ -50,13 +59,12 @@ Content-Type: application/json
 
 ### -----------------------------------------------------------------
 ### 2.3. Дублікат username → 409 "User with this username already exists"
-###      (test_alice вже існує після `npm run db:seed`)
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "username": "test_alice",
+  "username": "alice",
   "password": "any-pass-123",
   "name": "Інша Аліса"
 }
@@ -79,26 +87,26 @@ Content-Type: application/json
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 3.1. Успішний вхід як test_alice (сід-юзер) → 200 + accessToken + refreshToken
-###      Скопіюйте accessToken до @tokenAlice вгорі файлу.
+### 3.1. Успішний вхід як alice → 200 + accessToken + refreshToken
+###      Скопіюйте accessToken до @tokenAlice вгорі файлу,
+###      а refreshToken — до @aliceRefresh (знадобиться у 4.1).
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "test_alice",
+  "username": "alice",
   "password": "alice-pass-123"
 }
 
 ### -----------------------------------------------------------------
-### 3.2. Логін як test_bob (сід-юзер).
-###      Скопіюйте accessToken до @tokenBob вгорі.
+### 3.2. Логін як bob → 200. Скопіюйте accessToken до @tokenBob вгорі.
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "test_bob",
+  "username": "bob",
   "password": "bob-pass-123"
 }
 
@@ -114,13 +122,13 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 3.4. Невірний пароль → 401 з тим самим повідомленням "Invalid credentials"
+### 3.4. Невірний пароль → 401 із тим самим повідомленням "Invalid credentials"
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "username": "test_alice",
+  "username": "alice",
   "password": "wrong-password"
 }
 
@@ -130,19 +138,19 @@ Content-Type: application/json
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 4.1. Refresh через тіло запиту → 200 + нова пара токенів.
-###      ВСТАВТЕ актуальний refreshToken із відповіді 3.1.
+### 4.1. Refresh через тіло запиту → 200 + НОВА пара токенів.
+###      ВСТАВТЕ актуальний refreshToken (із відповіді 3.1) у @aliceRefresh.
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "PASTE_REFRESH_TOKEN_HERE"
+  "refreshToken": "{{aliceRefresh}}"
 }
 
 ### -----------------------------------------------------------------
 ### 4.2. Refresh через cookie (HttpOnly) — cookie встановлюється
-###      автоматично у відповіді 3.1; REST-клієнт VS Code зберігає cookies.
+###      автоматично у відповіді 3.1; REST Client VS Code зберігає cookies.
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/refresh
 
@@ -157,7 +165,20 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 4.4. Refresh без токена → 401 "Refresh token not provided"
+### 4.4. Повторне використання вже використаного refresh → 401.
+###      Доказ, що token rotation реально працює — старий запис вже
+###      видалено з БД після 4.1.
+### -----------------------------------------------------------------
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{aliceRefresh}}"
+}
+
+### -----------------------------------------------------------------
+### 4.5. Refresh без токена (порожнє тіло і без cookie) → 401
+###      "Refresh token not provided"
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/refresh
 Content-Type: application/json
@@ -170,7 +191,7 @@ Content-Type: application/json
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 5.1. Logout як test_alice → 200, cookie очищається, refresh видаляється
+### 5.1. Logout як alice → 200, cookie очищається, refresh видаляється з БД
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/logout
 Authorization: Bearer {{tokenAlice}}
@@ -180,19 +201,24 @@ Authorization: Bearer {{tokenAlice}}
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/auth/logout
 
+###
+### Після 5.1 потрібен новий логін, щоб мати валідний accessToken для
+### подальших запитів. Виконайте 3.1 ще раз і оновіть @tokenAlice / @aliceRefresh.
+###
+
 
 ### =================================================================
 ### КРИТЕРІЙ 6 — GET /auth/me (1 бал)
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 6.1. Профіль авторизованого користувача → 200, без поля password
+### 6.1. Профіль авторизованого користувача → 200, БЕЗ поля password
 ### -----------------------------------------------------------------
 GET {{baseUrl}}/auth/me
 Authorization: Bearer {{tokenAlice}}
 
 ### -----------------------------------------------------------------
-### 6.2. /auth/me без токена → 401
+### 6.2. /auth/me без токена → 401 "Authentication required"
 ### -----------------------------------------------------------------
 GET {{baseUrl}}/auth/me
 
@@ -208,7 +234,7 @@ GET {{baseUrl}}/auth/me
 Authorization: Bearer this.is.not.a.real.jwt
 
 ### -----------------------------------------------------------------
-### 7.2. Прострочений / підроблений підпис → 401
+### 7.2. JWT із валідним base64-форматом, але невірним підписом → 401
 ### -----------------------------------------------------------------
 GET {{baseUrl}}/auth/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiZXhwIjoxfQ.fake
@@ -219,12 +245,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIiwiZXhwIjoxfQ.fake
 ### =================================================================
 
 ### -----------------------------------------------------------------
-### 8.1. GET /announcements залишається публічним → 200
+### 8.1. GET /announcements залишається ПУБЛІЧНИМ → 200
 ### -----------------------------------------------------------------
 GET {{baseUrl}}/announcements
 
 ### -----------------------------------------------------------------
-### 8.2. GET /announcements/:id залишається публічним → 200
+### 8.2. GET /announcements/:id залишається ПУБЛІЧНИМ → 200
 ### -----------------------------------------------------------------
 GET {{baseUrl}}/announcements/1
 
@@ -243,7 +269,9 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 8.4. POST з токеном test_alice → 201, userId автоматично = test_alice
+### 8.4. POST з токеном alice → 201, userId автоматично = alice.id
+###      Скопіюйте `id` з відповіді у @aliceAnnouncementId вгорі —
+###      він потрібен для тестів ownership у секції 9.
 ### -----------------------------------------------------------------
 POST {{baseUrl}}/announcements
 Authorization: Bearer {{tokenAlice}}
@@ -258,66 +286,85 @@ Content-Type: application/json
 }
 
 ### -----------------------------------------------------------------
-### 8.5. PATCH без токена → 401
+### 8.5. POST з токеном bob → 201, userId = bob.id
+###      Скопіюйте `id` з відповіді у @bobAnnouncementId.
 ### -----------------------------------------------------------------
-PATCH {{baseUrl}}/announcements/1
+POST {{baseUrl}}/announcements
+Authorization: Bearer {{tokenBob}}
+Content-Type: application/json
+
+{
+  "title": "Оголошення Боба",
+  "description": "Опис від Боба, який буде довшим за десять символів",
+  "price": 9000,
+  "category": "sale",
+  "contactInfo": "+380672223344"
+}
+
+### -----------------------------------------------------------------
+### 8.6. PATCH без токена → 401
+### -----------------------------------------------------------------
+PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Content-Type: application/json
 
 { "price": 999 }
 
 ### -----------------------------------------------------------------
-### 8.6. DELETE без токена → 401
+### 8.7. DELETE без токена → 401
 ### -----------------------------------------------------------------
-DELETE {{baseUrl}}/announcements/1
+DELETE {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 
 
 ### =================================================================
 ### КРИТЕРІЙ 9 — Ownership (2 бали)
 ### =================================================================
+###
+### Використовуються id, які повернули 8.4 (alice) та 8.5 (bob).
+### Не забудьте заповнити @aliceAnnouncementId і @bobAnnouncementId вгорі.
+###
 
 ### -----------------------------------------------------------------
-### 9.1. test_alice оновлює СВОЄ оголошення → 200
-###      (id=1 належить test_alice після seed: index 0 → alice)
+### 9.1. alice оновлює СВОЄ оголошення → 200
 ### -----------------------------------------------------------------
-PATCH {{baseUrl}}/announcements/1
+PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenAlice}}
 Content-Type: application/json
 
 { "price": 17500 }
 
 ### -----------------------------------------------------------------
-### 9.2. test_bob намагається оновити ОГОЛОШЕННЯ test_alice → 403 "Access denied"
+### 9.2. bob намагається ОНОВИТИ оголошення alice → 403 "Access denied"
 ### -----------------------------------------------------------------
-PATCH {{baseUrl}}/announcements/1
+PATCH {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 Content-Type: application/json
 
 { "price": 1 }
 
 ### -----------------------------------------------------------------
-### 9.3. test_bob намагається ВИДАЛИТИ оголошення test_alice → 403 "Access denied"
+### 9.3. bob намагається ВИДАЛИТИ оголошення alice → 403 "Access denied"
 ### -----------------------------------------------------------------
-DELETE {{baseUrl}}/announcements/1
+DELETE {{baseUrl}}/announcements/{{aliceAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 
 ### -----------------------------------------------------------------
-### 9.4. test_bob оновлює СВОЄ оголошення → 200 (id=2 — Боба)
+### 9.4. bob оновлює СВОЄ оголошення → 200
 ### -----------------------------------------------------------------
-PATCH {{baseUrl}}/announcements/2
+PATCH {{baseUrl}}/announcements/{{bobAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 Content-Type: application/json
 
 { "price": 8888 }
 
 ### -----------------------------------------------------------------
-### 9.5. test_bob видаляє СВОЄ оголошення → 204
+### 9.5. bob ВИДАЛЯЄ своє оголошення → 204
 ### -----------------------------------------------------------------
-DELETE {{baseUrl}}/announcements/2
+DELETE {{baseUrl}}/announcements/{{bobAnnouncementId}}
 Authorization: Bearer {{tokenBob}}
 
 
 ### =================================================================
-### КРИТЕРІЙ 10 — Swagger
+### КРИТЕРІЙ 10 — Swagger (2 бали)
 ### =================================================================
 
 ### -----------------------------------------------------------------
