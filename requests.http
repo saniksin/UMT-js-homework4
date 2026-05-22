@@ -31,7 +31,7 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "username": "alice123",
+  "username": "alice",
   "password": "alice-pass-123",
   "name": "Аліса"
 }
