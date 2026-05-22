@@ -36,17 +36,17 @@ UMT-js-homework4/
 │   ├── constants/
 │   │   └── time.js              # ACCESS_TOKEN_LIFETIME, REFRESH_TOKEN_LIFETIME
 │   ├── controllers/
-│   │   ├── announcement.controller.js  # CRUD + ownership-checks
+│   │   ├── announcements.controller.js # CRUD + ownership-checks
 │   │   └── auth.controller.js          # register/login/refresh/logout/me
 │   ├── middleware/
-│   │   └── authenticate.js      # Bearer JWT → req.user.id
+│   │   └── auth.middleware.js   # Bearer JWT → req.user.id
 │   ├── routes/
-│   │   ├── announcement.routes.js
+│   │   ├── announcements.routes.js
 │   │   └── auth.routes.js
 │   ├── services/
 │   │   └── auth.js              # createTokens, setRefreshTokenCookie
 │   └── validators/
-│       ├── announcement.validator.js
+│       ├── announcements.validator.js
 │       └── auth.validator.js
 ├── app.js                       # Express bootstrap, error handler, Swagger
 ├── requests.http                # 30+ запитів — повне покриття всіх критеріїв
@@ -228,9 +228,9 @@ NODE_ENV=development
 | 4 | `POST /auth/refresh` | 2 | приймає з cookie та body; rotation у `auth.controller.js:84-104` |
 | 5 | `POST /auth/logout` | 1 | видаляє refresh з БД, чистить cookie |
 | 6 | `GET /auth/me` | 1 | захищений, `publicUser()` ховає `password` |
-| 7 | Middleware автентифікації | 2 | `src/middleware/authenticate.js`, Bearer-extract + 401 |
-| 8 | Захист маршрутів оголошень | 2 | `authenticate` на POST/PATCH/DELETE у `announcement.routes.js` |
-| 9 | Ownership | 2 | перевірки в `announcement.controller.js:54-58, 70-74` → 403 |
+| 7 | Middleware автентифікації | 2 | `src/middleware/auth.middleware.js`, Bearer-extract + 401 |
+| 8 | Захист маршрутів оголошень | 2 | `authenticate` на POST/PATCH/DELETE у `announcements.routes.js` |
+| 9 | Ownership | 2 | перевірки в `announcements.controller.js:54-58, 70-74` → 403 |
 | 10 | Swagger | 2 | повний JSDoc у обох роутерах + `bearerAuth` securityScheme |
 | 11 | `requests.http` | 2 | 30+ запитів, секція 6 — без токена, секція 8 — ownership |
 | **Σ** | | **20** | усі критерії пройдено E2E |

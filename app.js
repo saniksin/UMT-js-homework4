@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser'
 import swaggerUi from 'swagger-ui-express'
 import swaggerJsdoc from 'swagger-jsdoc'
 import { errors as celebrateErrors } from 'celebrate'
-import announcementsRouter from './src/routes/announcement.routes.js'
+import announcementsRouter from './src/routes/announcements.routes.js'
 import authRouter from './src/routes/auth.routes.js'
 
 const app = express()

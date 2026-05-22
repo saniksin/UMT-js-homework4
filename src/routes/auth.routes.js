@@ -6,7 +6,7 @@ import {
   refresh,
   register,
 } from '../controllers/auth.controller.js'
-import authenticate from '../middleware/authenticate.js'
+import authenticate from '../middleware/auth.middleware.js'
 import {
   loginValidator,
   refreshValidator,

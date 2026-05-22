@@ -5,14 +5,14 @@ import {
   getAnnouncementById,
   listAnnouncements,
   updateAnnouncement,
-} from '../controllers/announcement.controller.js'
-import authenticate from '../middleware/authenticate.js'
+} from '../controllers/announcements.controller.js'
+import authenticate from '../middleware/auth.middleware.js'
 import {
   createAnnouncementValidator,
   idParamValidator,
   listAnnouncementsValidator,
   updateAnnouncementValidator,
-} from '../validators/announcement.validator.js'
+} from '../validators/announcements.validator.js'
 
 const router = express.Router()
 
