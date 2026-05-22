@@ -3,11 +3,11 @@
 
 # Заповнюються вручну з відповідей: login повертає accessToken, POST
 # /announcements повертає id оголошення (потрібно для секції 9 — ownership).
-@tokenAlice           = 
-@tokenBob             = 
-@aliceRefresh         = 
-@aliceAnnouncementId  = 
-@bobAnnouncementId    = 
+@tokenAlice           = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwianRpIjoiOWM0OTYyODNlY2YxOGE4MCIsImlhdCI6MTc3OTQ2NDMxNCwiZXhwIjoxNzc5NDY1MjE0fQ.DmGdn8MHXvk54zDenB0llmtRkA_-G95eGbfmEVfbPp8
+@tokenBob             = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0IiwianRpIjoiYWIxOGIwMDRjYTM3NDA5YiIsImlhdCI6MTc3OTQ2Mzk0NCwiZXhwIjoxNzc5NDY0ODQ0fQ.KFQMi7bfHnrTvPmqXadpNekyJ53SNeWLigOrAp39_Tg
+@aliceRefresh         = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwianRpIjoiYjBkOWIzMWRlZjkzZmQzZWVkZjc5MTU2YmQ5MWNjZmMiLCJpYXQiOjE3Nzk0NjQzMTQsImV4cCI6MTc4MDA2OTExNH0.3IpUPrLShzXTJqTp33AMrmJanc_Gi-hJjSxw3nrSfHM
+@aliceAnnouncementId  = 26
+@bobAnnouncementId    = 27
 
 ###
 ### ⚙️ Усі запити позначені директивою `# @no-cookie-jar` — це опція
@@ -432,8 +432,7 @@ Authorization: Bearer {{tokenBob}}
 ### 10.1. Swagger UI має відкриватися на /api-docs (відкрийте у браузері)
 ###       → http://localhost:3000/api-docs
 ### -----------------------------------------------------------------
-# @no-cookie-jar
-GET {{baseUrl}}/api-docs/
+
 
 ### -----------------------------------------------------------------
 ### 10.2. OpenAPI JSON
