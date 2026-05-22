@@ -65,12 +65,14 @@ UMT-js-homework4/
 
 ```bash
 # 1. встановити залежності
+#    postinstall-скрипт автоматично виконає `prisma generate`
+#    (директорія `generated/` у .gitignore і у репо не зберігається)
 npm install
 
 # 2. сконфігурувати .env (вже є дев-дефолти, заміни секрети у проді!)
 cp .env.example .env
 
-# 3. застосувати міграції
+# 3. застосувати міграції (створить файл dev.db у корені проєкту)
 npx prisma migrate dev
 
 # 4. (опційно) засіяти демо-дані: 2 юзери + 25 оголошень
@@ -180,11 +182,22 @@ curl -i -X PATCH http://localhost:3000/announcements/1 \
 ## Скрипти `npm`
 
 ```bash
-npm start           # node app.js
-npm run dev         # node --watch app.js
+npm start                # node app.js
+npm run dev              # node --watch app.js
 npm run prisma:migrate   # prisma migrate dev
-npm run prisma:generate  # prisma generate
-npm run db:seed     # populate users + announcements
+npm run prisma:generate  # prisma generate (вручну, якщо потрібно перегенерувати)
+npm run db:seed          # populate users + announcements
+# postinstall            # запускається автоматично після npm install → prisma generate
+```
+
+## Troubleshooting
+
+**`Cannot find module '.../generated/prisma/client.js'`** — Prisma client не
+згенерований. Це трапляється, коли `postinstall` був пропущений
+(наприклад, `npm install --ignore-scripts`). Виконайте вручну:
+
+```bash
+npx prisma generate
 ```
 
 ## Конфігурація `.env`
