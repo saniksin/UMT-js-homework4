@@ -85,7 +85,12 @@ app.use((err, req, res, _next) => {
     return res.status(409).json({ error: 'Unique constraint violation' })
   }
   if (err.code === 'P2003') {
-    return res.status(400).json({ error: 'Foreign key constraint failed' })
+    return res.status(400).json({
+      error: 'Foreign key constraint failed',
+      hint:
+        'The userId in your JWT does not exist in the database. ' +
+        'This usually happens after `prisma migrate reset` — re-register the user via POST /auth/register and use the FRESH access token from the response.',
+    })
   }
 
   res.status(500).json({ error: 'Internal server error' })

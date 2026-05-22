@@ -204,6 +204,19 @@ npm run db:seed          # populate users + announcements
 npx prisma generate
 ```
 
+**`POST /announcements` повертає 400 "Foreign key constraint failed"** —
+ваш `accessToken` із минулої сесії, а БД скинута (`prisma migrate reset`).
+У JWT зберігається `sub = userId` старого юзера, якого в новій БД немає.
+Розв'язок — отримати свіжий токен:
+
+1. `POST /auth/register` (або `POST /auth/login`, якщо юзер уже існує).
+2. Скопіюйте `accessToken` із відповіді у `@tokenAlice` (або `@tokenBob`)
+   у `requests.http`.
+3. Повторіть запит.
+
+Те саме стосується `@aliceRefresh` — після `migrate reset` його теж треба
+оновити з нової `POST /auth/login` відповіді.
+
 ## Конфігурація `.env`
 
 ```env

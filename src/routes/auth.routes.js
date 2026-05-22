@@ -99,6 +99,12 @@ const router = express.Router()
  *         description: |
  *           Користувач створений. Refresh token встановлюється в HttpOnly cookie
  *           і одночасно повертається в тілі відповіді.
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: refreshToken=eyJhbGciOi...; Path=/; HttpOnly; SameSite=Strict
+ *             description: HttpOnly cookie з refresh-токеном (7 днів)
  *         content:
  *           application/json:
  *             schema:
@@ -137,6 +143,12 @@ router.post('/register', registerValidator, register)
  *     responses:
  *       200:
  *         description: Вхід успішний; refresh token встановлюється в HttpOnly cookie
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: refreshToken=eyJhbGciOi...; Path=/; HttpOnly; SameSite=Strict
+ *             description: HttpOnly cookie з refresh-токеном (7 днів)
  *         content:
  *           application/json:
  *             schema:
@@ -176,12 +188,22 @@ router.post('/login', loginValidator, login)
  *     responses:
  *       200:
  *         description: Нова пара токенів видана
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: refreshToken=eyJhbGciOi...; Path=/; HttpOnly; SameSite=Strict
+ *             description: Новий HttpOnly cookie з refresh-токеном (старий запис із БД видалено)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/TokensResponse'
  *       401:
  *         description: Refresh token відсутній, невалідний або прострочений
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/refresh', refreshValidator, refresh)
 
@@ -190,12 +212,22 @@ router.post('/refresh', refreshValidator, refresh)
  * /auth/logout:
  *   post:
  *     summary: Вийти з акаунту (видалити refresh token)
+ *     description: |
+ *       Захищений маршрут. Видаляє всі refresh-токени поточного користувача
+ *       з БД та очищає HttpOnly cookie. **Ідемпотентний**: якщо в базі нічого
+ *       не знайдено (повторний logout) — все одно повертає 200.
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Refresh token видалений з БД, cookie очищена
+ *         headers:
+ *           Set-Cookie:
+ *             schema:
+ *               type: string
+ *               example: refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict
+ *             description: Cookie очищається (порожнє значення + минула дата expiration)
  *         content:
  *           application/json:
  *             schema:
@@ -205,7 +237,11 @@ router.post('/refresh', refreshValidator, refresh)
  *                   type: string
  *                   example: Logged out successfully
  *       401:
- *         description: Не автентифіковано
+ *         description: Не автентифіковано (відсутній або невалідний accessToken)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/logout', authenticate, logout)
 
@@ -225,7 +261,23 @@ router.post('/logout', authenticate, logout)
  *             schema:
  *               $ref: '#/components/schemas/User'
  *       401:
- *         description: Не автентифіковано
+ *         description: Не автентифіковано (відсутній або невалідний accessToken)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: |
+ *           Користувача з `id` із токена не знайдено в базі (рідкісний випадок:
+ *           аккаунт був видалений у проміжку між видачею токена та цим запитом).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Resource not found
  */
 router.get('/me', authenticate, me)
 
