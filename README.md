@@ -89,14 +89,18 @@ Swagger UI — `http://localhost:3000/api-docs`.
 
 ## Демо-облікові записи (після `npm run db:seed`)
 
-| username | password         |
-|----------|------------------|
-| `alice`  | `alice-pass-123` |
-| `bob`    | `bob-pass-123`   |
+| username     | password         |
+|--------------|------------------|
+| `test_alice` | `alice-pass-123` |
+| `test_bob`   | `bob-pass-123`   |
 
-Оголошення розподілені почергово — id 1, 3, 5, … належать Алісі,
-id 2, 4, 6, … — Бобу. Це дозволяє одразу перевіряти ownership:
-spróbować PATCH/DELETE «чужого» id.
+Префікс `test_` навмисний — він гарантує, що сценарії з `requests.http`
+(секція 2 — `POST /auth/register` з `alice` / `bob`) **не конфліктують**
+із сід-юзерами й завжди успішно відпрацьовують 201.
+
+Оголошення розподілені почергово — id 1, 3, 5, … належать `test_alice`,
+id 2, 4, 6, … — `test_bob`. Це дозволяє одразу перевіряти ownership:
+запустити PATCH/DELETE «чужого» id під іншим токеном і отримати 403.
 
 ## Endpoint-и
 
@@ -138,19 +142,19 @@ spróbować PATCH/DELETE «чужого» id.
 ## Перевірка ownership (короткий E2E через curl)
 
 ```bash
-# 1. Аліса логіниться
+# 1. Аліса логіниться (test_alice — сід-юзер)
 ALICE=$(curl -s -X POST http://localhost:3000/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"alice","password":"alice-pass-123"}' \
+  -d '{"username":"test_alice","password":"alice-pass-123"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
 
 # 2. Боб логіниться
 BOB=$(curl -s -X POST http://localhost:3000/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"bob","password":"bob-pass-123"}' \
+  -d '{"username":"test_bob","password":"bob-pass-123"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['accessToken'])")
 
-# 3. Боб намагається оновити оголошення id=1 (належить Алісі) → 403
+# 3. Боб намагається оновити оголошення id=1 (належить test_alice) → 403
 curl -i -X PATCH http://localhost:3000/announcements/1 \
   -H "Authorization: Bearer $BOB" \
   -H 'Content-Type: application/json' \

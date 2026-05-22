@@ -7,8 +7,8 @@ import bcrypt from 'bcrypt'
 import prisma from './client.js'
 
 const DEMO_USERS = [
-  { username: 'alice', name: 'Аліса', password: 'alice-pass-123' },
-  { username: 'bob', name: 'Боб', password: 'bob-pass-123' },
+  { username: 'test_alice', name: 'Аліса', password: 'alice-pass-123' },
+  { username: 'test_bob', name: 'Боб', password: 'bob-pass-123' },
 ]
 
 const titles = [
