@@ -4,6 +4,7 @@
 # Заповнюються вручну з відповідей: login повертає accessToken, POST
 # /announcements повертає id оголошення (потрібно для секції 9 — ownership).
 @tokenAlice           = 
+@tokenBob             = 
 @aliceRefresh         = 
 @aliceAnnouncementId  = 
 @bobAnnouncementId    = 
